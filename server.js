@@ -8,21 +8,26 @@ const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.REDIRECT_URI;
 
-// Qui salviamo il token dell’utente loggato
+// Token salvati sul server per l’utente loggato
 let access_token = null;
 let refresh_token = null;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// Login endpoint
+// Home
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'FuturePlayerWeb.html'));
+});
+
+// Login con Spotify Premium
 app.get('/login', (req, res) => {
   const scope = 'user-read-private user-read-email user-library-read streaming';
   const authURL = `https://accounts.spotify.com/authorize?response_type=code&client_id=${client_id}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirect_uri)}`;
   res.redirect(authURL);
 });
 
-// Callback endpoint
+// Callback dopo login Spotify
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if(!code) return res.send('Errore: nessun codice ricevuto');
@@ -54,12 +59,13 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-// Endpoint ricerca globale brani/artist
+// Endpoint ricerca brani / artist
 app.get('/search', async (req,res)=>{
   const query = req.query.q;
   if(!query) return res.json([]);
 
-  if(!access_token) return res.status(401).send('Devi prima fare login con Spotify Premium');
+  // Se non c’è token, ritorna messaggio invece di bloccare
+  if(!access_token) return res.status(200).json({error:'Devi prima fare login con Spotify Premium', tracks:[]});
 
   try {
     const response = await axios.get('https://api.spotify.com/v1/search', {
@@ -72,6 +78,23 @@ app.get('/search', async (req,res)=>{
     res.status(500).send('Errore nella ricerca Spotify');
   }
 });
+
+// Funzione per refresh token (opzionale)
+async function refreshAccessToken() {
+  if(!refresh_token) return;
+  const params = new URLSearchParams();
+  params.append('grant_type','refresh_token');
+  params.append('refresh_token',refresh_token);
+
+  const res = await axios.post('https://accounts.spotify.com/api/token', params, {
+    headers: {
+      'Authorization':'Basic '+Buffer.from(client_id+':'+client_secret).toString('base64'),
+      'Content-Type':'application/x-www-form-urlencoded'
+    }
+  });
+  access_token = res.data.access_token;
+  console.log('✅ Access token aggiornato');
+}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT,()=>console.log(`Server avviato su ${PORT}`));
