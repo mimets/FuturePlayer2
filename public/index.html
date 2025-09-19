@@ -29,9 +29,14 @@ audio { margin-top:20px; width:90%; }
 <div id="resultsContainer"></div>
 
 <script>
-const client_id = 'b90535fe438c4d8d9fb382daf85cb56a';
+const client_id = 'b90535fe438c4d8d9fb382daf85cb56a'; // <-- sostituisci con il tuo client ID
 const redirect_uri = window.location.origin + '/';
 let access_token = null;
+
+// Mostra bottone login solo se non abbiamo token
+function showLoginButton(show) {
+  document.getElementById('loginBtn').style.display = show ? 'inline-block' : 'none';
+}
 
 // Login Spotify
 function loginSpotify() {
@@ -45,26 +50,28 @@ async function exchangeCodeForToken(code) {
   try {
     const res = await fetch('/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ code })
     });
     const data = await res.json();
     access_token = data.access_token;
-    console.log('Access token ricevuto:', access_token);
-  } catch (err) {
+    showLoginButton(false);
+  } catch(err) {
     console.error('Errore scambio token:', err);
+    showLoginButton(true);
   }
 }
 
-// Controlla se c’è code nella URL all’avvio
+// Controllo code nella URL all'avvio
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
-  if(code){
+  if(code) {
     await exchangeCodeForToken(code);
     // Rimuove code dalla URL senza ricaricare
     window.history.replaceState({}, document.title, "/");
   }
+  if(!access_token) showLoginButton(true);
 };
 
 // Funzione ricerca
@@ -73,7 +80,6 @@ async function searchTracks() {
     alert('Devi prima fare login con Spotify Premium');
     return;
   }
-
   const query = document.getElementById('searchInput').value.trim();
   if(!query) return;
 
@@ -86,7 +92,7 @@ async function searchTracks() {
     const container = document.getElementById('resultsContainer');
     container.innerHTML = '';
 
-    if(tracks.length === 0){
+    if(tracks.length === 0) {
       container.textContent = 'Nessun risultato trovato';
       return;
     }
