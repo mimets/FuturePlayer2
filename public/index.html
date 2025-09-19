@@ -9,42 +9,54 @@ button { padding:10px 20px; background:#1DB954; color:white; border:none; border
 button:hover { background:#1ed760;}
 input { padding:8px; width:300px; margin:10px;}
 audio { margin-top:20px; width:90%; }
+#resultsContainer button { display:block; margin:5px auto; width:90%; text-align:left; }
 </style>
 </head>
 <body>
 <h1>🎵 FuturePlayer Premium</h1>
+
+<!-- Bottone login -->
 <button id="loginBtn">Accedi con Spotify Premium</button>
+
+<!-- Input ricerca -->
 <input type="text" id="searchInput" placeholder="Cerca artista o brano..." />
-<button onclick="searchTracks()">Cerca</button>
+<button id="searchBtn">Cerca</button>
+
+<!-- Player audio -->
 <audio id="player" controls></audio>
+
+<!-- Risultati ricerca -->
 <div id="resultsContainer"></div>
 
 <script>
-const client_id = b90535fe438c4d8d9fb382daf85cb56a;
+const client_id = 'METTI_IL_TUO_CLIENT_ID';
 const redirect_uri = window.location.origin + '/';
 let access_token = null;
 
 // Login Spotify
-function loginSpotify(){
+function loginSpotify() {
   const scope = 'user-read-private user-read-email user-library-read streaming';
   const authURL = `https://accounts.spotify.com/authorize?response_type=code&client_id=${client_id}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirect_uri)}`;
   window.location = authURL;
 }
 
-// Scambia il code con access token
-async function exchangeCodeForToken(code){
-  try{
-    const res = await fetch('/token',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({code})
+// Scambia code con access token
+async function exchangeCodeForToken(code) {
+  try {
+    const res = await fetch('/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
     });
     const data = await res.json();
     access_token = data.access_token;
-  }catch(err){ console.error(err); }
+    console.log('Access token ricevuto:', access_token);
+  } catch (err) {
+    console.error('Errore scambio token:', err);
+  }
 }
 
-// Controlla se c’è un code nella URL all’avvio
+// Controlla se c’è code nella URL all’avvio
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
@@ -55,42 +67,52 @@ window.onload = async () => {
   }
 };
 
-document.getElementById('loginBtn').onclick = loginSpotify;
-
 // Funzione ricerca
-async function searchTracks(){
+async function searchTracks() {
   if(!access_token){
     alert('Devi prima fare login con Spotify Premium');
     return;
   }
 
-  const query = document.getElementById('searchInput').value;
+  const query = document.getElementById('searchInput').value.trim();
   if(!query) return;
 
-  try{
-    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,{
-      headers:{Authorization:'Bearer ' + access_token}
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
+      headers: { Authorization: 'Bearer ' + access_token }
     });
     const data = await res.json();
     const tracks = data.tracks.items;
     const container = document.getElementById('resultsContainer');
-    container.innerHTML='';
+    container.innerHTML = '';
 
-    if(tracks.length===0){ container.textContent='Nessun risultato trovato'; return; }
+    if(tracks.length === 0){
+      container.textContent = 'Nessun risultato trovato';
+      return;
+    }
 
-    tracks.forEach(track=>{
+    tracks.forEach(track => {
       if(track.preview_url){
         const btn = document.createElement('button');
-        btn.textContent = track.name + ' - ' + track.artists.map(a=>a.name).join(', ');
-        btn.onclick = ()=>{ 
-          document.getElementById('player').src=track.preview_url;
+        btn.textContent = `${track.name} - ${track.artists.map(a => a.name).join(', ')}`;
+        btn.onclick = () => {
+          document.getElementById('player').src = track.preview_url;
           document.getElementById('player').play();
         };
         container.appendChild(btn);
       }
     });
-  }catch(err){ console.error('Errore ricerca:',err); }
+  } catch(err){
+    console.error('Errore ricerca:', err);
+  }
 }
+
+// Event listeners
+document.getElementById('loginBtn').onclick = loginSpotify;
+document.getElementById('searchBtn').onclick = searchTracks;
+document.getElementById('searchInput').addEventListener('keyup', (e) => {
+  if(e.key === 'Enter') searchTracks();
+});
 </script>
 </body>
 </html>
