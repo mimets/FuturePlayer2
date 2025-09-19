@@ -26,6 +26,10 @@ async function searchTracks(){
 
   try {
     const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
+    if(res.status === 401){
+      alert('Devi prima fare login con Spotify Premium');
+      return;
+    }
     const tracks = await res.json();
     const container = document.getElementById('resultsContainer');
     container.innerHTML='';

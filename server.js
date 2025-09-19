@@ -8,10 +8,12 @@ const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.REDIRECT_URI;
 
-let access_token = process.env.ACCESS_TOKEN;
-const refresh_token = process.env.REFRESH_TOKEN;
+// Qui salviamo il token dell’utente loggato
+let access_token = null;
+let refresh_token = null;
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
 // Login endpoint
 app.get('/login', (req, res) => {
@@ -20,7 +22,7 @@ app.get('/login', (req, res) => {
   res.redirect(authURL);
 });
 
-// Callback
+// Callback endpoint
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if(!code) return res.send('Errore: nessun codice ricevuto');
@@ -40,8 +42,12 @@ app.get('/callback', async (req, res) => {
         }
       }
     );
+
     access_token = tokenRes.data.access_token;
-    res.send('✅ Autenticazione completata. Puoi ora usare il player con ricerca globale!');
+    refresh_token = tokenRes.data.refresh_token;
+
+    // Reindirizza alla home del player
+    res.redirect('/');
   } catch(err) {
     console.error(err.response?.data || err);
     res.send('Errore nello scambio del codice con token');
@@ -52,6 +58,8 @@ app.get('/callback', async (req, res) => {
 app.get('/search', async (req,res)=>{
   const query = req.query.q;
   if(!query) return res.json([]);
+
+  if(!access_token) return res.status(401).send('Devi prima fare login con Spotify Premium');
 
   try {
     const response = await axios.get('https://api.spotify.com/v1/search', {
