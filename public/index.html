@@ -2,52 +2,35 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <title>FuturePlayer</title>
+  <title>FuturePlayer Premium</title>
   <style>
     body { font-family: Arial, sans-serif; background:#111; color:#fff; text-align:center; padding:40px;}
     button { padding:10px 20px; background:#1DB954; color:white; border:none; border-radius:5px; cursor:pointer; margin:5px;}
     button:hover { background:#1ed760;}
+    input { padding:8px; width:300px; margin:10px;}
     audio { margin-top:20px; width:90%;}
-    .playlist, .track { margin:10px 0; }
   </style>
 </head>
 <body>
-  <h1>🎵 FuturePlayer</h1>
+  <h1>🎵 FuturePlayer Premium</h1>
+  <input type="text" id="searchInput" placeholder="Cerca artista o brano..." />
+  <button onclick="searchTracks()">Cerca</button>
   <audio id="player" controls></audio>
-  <div id="playlistContainer"></div>
+  <div id="resultsContainer"></div>
 
   <script>
-    // Carica tutte le playlist
-    async function loadPlaylists() {
-      const res = await fetch('/playlists');
-      const playlists = await res.json();
-      const container = document.getElementById('playlistContainer');
-      container.innerHTML = '';
-
-      playlists.forEach(pl => {
-        const div = document.createElement('div');
-        div.className = 'playlist';
-        const btn = document.createElement('button');
-        btn.textContent = pl.name;
-        btn.onclick = () => loadTracks(pl.id); // quando clicchi la playlist, carica le tracce
-        div.appendChild(btn);
-        container.appendChild(div);
-      });
-    }
-
-    // Carica tracce di una playlist selezionata
-    async function loadTracks(playlistId) {
-      const res = await fetch(`/playlist/${playlistId}/tracks`);
+    async function searchTracks() {
+      const query = document.getElementById('searchInput').value;
+      if(!query) return;
+      const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
       const tracks = await res.json();
-      const container = document.getElementById('playlistContainer');
+      const container = document.getElementById('resultsContainer');
       container.innerHTML = '';
 
-      tracks.forEach(trackItem => {
-        const track = trackItem.track;
-        if(track && track.preview_url){
+      tracks.forEach(track => {
+        if(track.preview_url){
           const btn = document.createElement('button');
-          btn.className = 'track';
-          btn.textContent = track.name;
+          btn.textContent = track.name + ' - ' + track.artists.map(a=>a.name).join(', ');
           btn.onclick = () => {
             document.getElementById('player').src = track.preview_url;
             document.getElementById('player').play();
@@ -55,15 +38,7 @@
           container.appendChild(btn);
         }
       });
-
-      // Bottone per tornare alle playlist
-      const backBtn = document.createElement('button');
-      backBtn.textContent = '← Torna alle playlist';
-      backBtn.onclick = loadPlaylists;
-      container.appendChild(backBtn);
     }
-
-    loadPlaylists();
   </script>
 </body>
 </html>

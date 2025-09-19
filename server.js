@@ -4,53 +4,41 @@ const axios = require('axios');
 const path = require('path');
 const app = express();
 
+let access_token = process.env.ACCESS_TOKEN;
+const refresh_token = process.env.REFRESH_TOKEN;
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-let access_token = process.env.ACCESS_TOKEN; // token corrente
-const refresh_token = process.env.REFRESH_TOKEN;
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
 // Home page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'FuturePlayerWeb.html'));
 });
 
-// Endpoint: ottieni playlist dell'utente
-app.get('/playlists', async (req, res) => {
+// Endpoint ricerca brani o artisti
+app.get('/search', async (req, res) => {
+  const query = req.query.q;
+  if (!query) return res.json([]);
+
   try {
-    const response = await axios.get('https://api.spotify.com/v1/me/playlists', {
-      headers: { Authorization: 'Bearer ' + access_token }
+    const response = await axios.get(`https://api.spotify.com/v1/search`, {
+      headers: { Authorization: 'Bearer ' + access_token },
+      params: { q: query, type: 'track,artist', limit: 10 }
     });
-    res.json(response.data.items);
+    res.json(response.data.tracks.items); // ritorna solo le tracce
   } catch (err) {
     if (err.response && err.response.status === 401) {
       await refreshAccessToken();
-      return res.redirect('/playlists');
+      return res.redirect(`/search?q=${encodeURIComponent(query)}`);
     }
     console.error(err.response?.data || err);
-    res.status(500).send('Errore fetching playlists');
+    res.status(500).send('Errore ricerca Spotify');
   }
 });
 
-// Endpoint: ottieni tracce di una playlist
-app.get('/playlist/:id/tracks', async (req, res) => {
-  try {
-    const response = await axios.get(`https://api.spotify.com/v1/playlists/${req.params.id}/tracks`, {
-      headers: { Authorization: 'Bearer ' + access_token }
-    });
-    res.json(response.data.items);
-  } catch (err) {
-    if (err.response && err.response.status === 401) {
-      await refreshAccessToken();
-      return res.redirect(`/playlist/${req.params.id}/tracks`);
-    }
-    console.error(err.response?.data || err);
-    res.status(500).send('Errore fetching tracks');
-  }
-});
-
-// Funzione per aggiornare l'access token
+// Funzione per aggiornare Access Token
 async function refreshAccessToken() {
   const params = new URLSearchParams();
   params.append('grant_type', 'refresh_token');
