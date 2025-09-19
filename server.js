@@ -32,7 +32,6 @@ app.post('/token', async (req, res) => {
       }
     );
 
-    // Ritorna access token, refresh token e scadenza
     res.json({
       access_token: tokenRes.data.access_token,
       refresh_token: tokenRes.data.refresh_token,
@@ -45,4 +44,4 @@ app.post('/token', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server avviato su ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server avviato su ${PORT}`));
