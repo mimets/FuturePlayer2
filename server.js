@@ -6,7 +6,7 @@ const app = express();
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-let access_token = process.env.ACCESS_TOKEN; // token attuale
+let access_token = process.env.ACCESS_TOKEN; // token corrente
 const refresh_token = process.env.REFRESH_TOKEN;
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'FuturePlayerWeb.html'));
 });
 
-// Endpoint per prendere le playlist dell'utente
+// Endpoint: ottieni playlist dell'utente
 app.get('/playlists', async (req, res) => {
   try {
     const response = await axios.get('https://api.spotify.com/v1/me/playlists', {
@@ -25,12 +25,28 @@ app.get('/playlists', async (req, res) => {
     res.json(response.data.items);
   } catch (err) {
     if (err.response && err.response.status === 401) {
-      // Token scaduto, aggiorna
       await refreshAccessToken();
       return res.redirect('/playlists');
     }
     console.error(err.response?.data || err);
     res.status(500).send('Errore fetching playlists');
+  }
+});
+
+// Endpoint: ottieni tracce di una playlist
+app.get('/playlist/:id/tracks', async (req, res) => {
+  try {
+    const response = await axios.get(`https://api.spotify.com/v1/playlists/${req.params.id}/tracks`, {
+      headers: { Authorization: 'Bearer ' + access_token }
+    });
+    res.json(response.data.items);
+  } catch (err) {
+    if (err.response && err.response.status === 401) {
+      await refreshAccessToken();
+      return res.redirect(`/playlist/${req.params.id}/tracks`);
+    }
+    console.error(err.response?.data || err);
+    res.status(500).send('Errore fetching tracks');
   }
 });
 
