@@ -4,12 +4,18 @@ const axios = require('axios');
 const path = require('path');
 const app = express();
 
+// Legge le credenziali dal file .env
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirect_uri = process.env.REDIRECT_URI; // esempio: https://futureplayer2-1.onrender.com/
+const redirect_uri = process.env.REDIRECT_URI;
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// Endpoint per restituire client_id al frontend
+app.get('/config', (req,res)=>{
+  res.json({ client_id });
+});
 
 // Endpoint per scambiare code con access token
 app.post('/token', async (req, res) => {
@@ -39,9 +45,9 @@ app.post('/token', async (req, res) => {
     });
   } catch (err) {
     console.error(err.response?.data || err);
-    res.status(500).json({ error: 'Errore nello scambio del token' });
+    res.status(500).json({ error: 'Errore nello scambio token' });
   }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server avviato su ${PORT}`));
+app.listen(PORT, () => console.log(`✅ Server avviato sulla porta ${PORT}`));
