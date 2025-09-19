@@ -2,75 +2,85 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<title>FuturePlayer Premium</title>
+<title>FuturePlayer</title>
 <style>
-body{font-family:Arial;color:#fff;background:#111;text-align:center;padding:40px;}
-input,button{padding:8px;margin:5px;}
-button{background:#1DB954;border:none;border-radius:5px;color:white;cursor:pointer;}
-button:hover{background:#1ed760;}
-#results button{display:block;margin:5px auto;width:90%;text-align:left;}
+  body { font-family: Arial, sans-serif; background:#111; color:#fff; text-align:center; padding:40px;}
+  input, button { padding:10px; margin:5px; border-radius:5px; border:none; }
+  button { background:#1DB954; color:white; cursor:pointer; }
+  button:hover { background:#1ed760; }
+  #results { margin-top:20px; text-align:left; max-width:600px; margin-left:auto; margin-right:auto;}
+  .track { padding:5px; border-bottom:1px solid #333; cursor:pointer;}
+  .track:hover { background:#222; }
 </style>
 </head>
 <body>
-<h1>🎵 FuturePlayer Premium</h1>
-<input type="text" id="searchInput" placeholder="Cerca artista o brano"/>
-<button id="searchBtn">Cerca</button>
+
+<h1>🎵 FuturePlayer</h1>
+
+<input type="text" id="query" placeholder="Cerca artista o brano">
+<button onclick="search()">Cerca</button>
+
 <div id="results"></div>
+<audio id="player" controls style="margin-top:20px; width:90%;"></audio>
 
-<script src="https://sdk.scdn.co/spotify-player.js"></script>
 <script>
-let token=null;
+let accessToken = null;
 
-// Prende token dal server
-async function getToken(){
-  const res = await fetch('/token');
-  const data = await res.json();
-  token = data.access_token;
+// Prendi access token dal server
+async function getAccessToken(){
+  try {
+    const res = await fetch('/token');
+    const data = await res.json();
+    if(data.access_token) return data.access_token;
+    alert('Token non disponibile');
+    return null;
+  } catch(e){
+    console.error(e);
+    alert('Errore nel recupero token');
+    return null;
+  }
 }
-getToken();
 
-// Inizializza Spotify Web Playback SDK
-window.onSpotifyWebPlaybackSDKReady = () => {
-  const player = new Spotify.Player({
-    name: 'FuturePlayer',
-    getOAuthToken: cb => { cb(token); },
-    volume: 0.8
-  });
+// Cerca su Spotify
+async function search(){
+  const query = document.getElementById('query').value;
+  if(!query) return alert('Inserisci un termine di ricerca');
 
-  player.addListener('ready', ({device_id})=>{
-    console.log('Device pronto', device_id);
-    window.device_id = device_id;
-  });
+  if(!accessToken) accessToken = await getAccessToken();
+  if(!accessToken) return;
 
-  player.connect();
-};
-
-// Funzione ricerca
-document.getElementById('searchBtn').onclick = async () => {
-  if(!token) { alert('Token non disponibile'); return; }
-  const query = document.getElementById('searchInput').value.trim();
-  if(!query) return;
-
-  const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,{
-    headers:{Authorization:'Bearer '+token}
-  });
+  const url = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track,artist&limit=10`;
+  const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + accessToken }});
   const data = await res.json();
-  const container = document.getElementById('results');
-  container.innerHTML='';
 
-  data.tracks.items.forEach(track=>{
-    const btn=document.createElement('button');
-    btn.textContent = `${track.name} - ${track.artists.map(a=>a.name).join(', ')}`;
-    btn.onclick=()=>{
-      fetch(`https://api.spotify.com/v1/me/player/play?device_id=${window.device_id}`,{
-        method:'PUT',
-        body: JSON.stringify({uris:[track.uri]}),
-        headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}
-      });
-    };
-    container.appendChild(btn);
-  });
-};
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '';
+
+  if(data.tracks?.items.length > 0){
+    data.tracks.items.forEach(track => {
+      const div = document.createElement('div');
+      div.className = 'track';
+      div.textContent = `${track.name} - ${track.artists.map(a=>a.name).join(', ')}`;
+      div.onclick = () => playTrack(track);
+      resultsDiv.appendChild(div);
+    });
+  } else {
+    resultsDiv.innerHTML = '<p>Nessun risultato trovato</p>';
+  }
+}
+
+// Riproduci brano
+function playTrack(track){
+  const player = document.getElementById('player');
+  // Se hai Premium puoi usare track.preview_url o Spotify Web Playback SDK
+  if(track.preview_url){
+    player.src = track.preview_url;
+    player.play();
+  } else {
+    alert('Non disponibile per riproduzione diretta (serve Spotify Premium + SDK)');
+  }
+}
 </script>
+
 </body>
 </html>
