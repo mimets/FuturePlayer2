@@ -14,7 +14,7 @@ let access_token = null;
 // Serve file statici (frontend)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Funzione per aggiornare l'access token dal refresh token
+// Funzione per aggiornare access token
 async function refreshAccessToken() {
   try {
     const res = await axios.post(
@@ -32,9 +32,9 @@ async function refreshAccessToken() {
     );
 
     access_token = res.data.access_token;
-    console.log('✅ Access token aggiornato');
+    console.log('✅ Access token aggiornato:', access_token.substring(0, 20), '...'); // mostra solo i primi 20 caratteri
   } catch (err) {
-    console.error('❌ Errore refresh token:', err.response?.data || err);
+    console.error('❌ Errore refresh token:', err.response?.data || err.message);
   }
 }
 
@@ -42,13 +42,20 @@ async function refreshAccessToken() {
 refreshAccessToken();
 setInterval(refreshAccessToken, 50 * 60 * 1000);
 
-// Endpoint per restituire access token al frontend
+// Endpoint per il frontend
 app.get('/token', (req, res) => {
   if (!access_token) return res.status(500).json({ error: 'Token non disponibile' });
   res.json({ access_token });
 });
 
-// Callback OAuth (opzionale, se vuoi ottenere refresh token via login)
+// Endpoint di test debug
+app.get('/test-token', async (req, res) => {
+  await refreshAccessToken(); // forza refresh
+  if (!access_token) return res.status(500).send('Token non disponibile');
+  res.send(`Access Token generato correttamente: ${access_token.substring(0, 50)}...`);
+});
+
+// Callback OAuth (solo se vuoi ottenere refresh token via login)
 app.get('/callback', async (req, res) => {
   const code = req.query.code;
   if (!code) return res.send('Errore: nessun codice ricevuto.');
