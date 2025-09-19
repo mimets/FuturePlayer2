@@ -2,52 +2,41 @@ require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const path = require('path');
-const app = express();
 
-// Legge le credenziali dal file .env
+const app = express();
+app.use(express.static(path.join(__dirname,'public')));
+app.use(express.json());
+
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const redirect_uri = process.env.REDIRECT_URI;
+let access_token = null;
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-
-// Endpoint per restituire client_id al frontend
-app.get('/config', (req,res)=>{
-  res.json({ client_id });
-});
-
-// Endpoint per scambiare code con access token
-app.post('/token', async (req, res) => {
-  const code = req.body.code;
-  if (!code) return res.status(400).json({ error: 'Code mancante' });
-
-  try {
-    const tokenRes = await axios.post(
-      'https://accounts.spotify.com/api/token',
+// Funzione per aggiornare l'access token usando il refresh token
+async function refreshAccessToken(){
+  try{
+    const res = await axios.post('https://accounts.spotify.com/api/token',
       new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri
+        grant_type:'refresh_token',
+        refresh_token: process.env.REFRESH_TOKEN
       }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
-        }
-      }
+      { headers: { 'Authorization':'Basic '+ Buffer.from(client_id+':'+client_secret).toString('base64'),
+                  'Content-Type':'application/x-www-form-urlencoded' } }
     );
+    access_token = res.data.access_token;
+    console.log('Access token aggiornato');
+  }catch(e){ console.error('Errore refresh token', e.response?.data||e); }
+}
 
-    res.json({
-      access_token: tokenRes.data.access_token,
-      refresh_token: tokenRes.data.refresh_token,
-      expires_in: tokenRes.data.expires_in
-    });
-  } catch (err) {
-    console.error(err.response?.data || err);
-    res.status(500).json({ error: 'Errore nello scambio token' });
-  }
+// Aggiorna token all’avvio e ogni 30 minuti
+refreshAccessToken();
+setInterval(refreshAccessToken, 30*60*1000);
+
+// Endpoint per restituire token al frontend
+app.get('/token', (req,res)=>{
+  if(!access_token) return res.status(500).json({error:'Token non disponibile'});
+  res.json({access_token});
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server avviato sulla porta ${PORT}`));
+app.listen(PORT,()=>console.log(`Server avviato su ${PORT}`));
