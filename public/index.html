@@ -13,7 +13,7 @@ audio { margin-top:20px; width:90%; }
 </head>
 <body>
 <h1>🎵 FuturePlayer Premium</h1>
-<a id="loginBtn" href="#"><button>Accedi con Spotify Premium</button></a>
+<button id="loginBtn">Accedi con Spotify Premium</button>
 <input type="text" id="searchInput" placeholder="Cerca artista o brano..." />
 <button onclick="searchTracks()">Cerca</button>
 <audio id="player" controls></audio>
@@ -24,32 +24,40 @@ const client_id = 'METTI_IL_TUO_CLIENT_ID';
 const redirect_uri = window.location.origin + '/';
 let access_token = null;
 
-// Genera URL login Spotify
-function loginSpotify() {
+// Login Spotify
+function loginSpotify(){
   const scope = 'user-read-private user-read-email user-library-read streaming';
   const authURL = `https://accounts.spotify.com/authorize?response_type=code&client_id=${client_id}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirect_uri)}`;
   window.location = authURL;
 }
 
-// Se c’è code nella URL, scambialo con token
+// Scambia il code con access token
+async function exchangeCodeForToken(code){
+  try{
+    const res = await fetch('/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code})
+    });
+    const data = await res.json();
+    access_token = data.access_token;
+  }catch(err){ console.error(err); }
+}
+
+// Controlla se c’è un code nella URL all’avvio
 window.onload = async () => {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
   if(code){
-    try{
-      const res = await fetch('/token', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ code })
-      });
-      const data = await res.json();
-      access_token = data.access_token;
-      // Rimuovo il code dalla URL
-      window.history.replaceState({}, document.title, "/");
-    }catch(err){ console.error(err); }
+    await exchangeCodeForToken(code);
+    // Rimuove code dalla URL senza ricaricare
+    window.history.replaceState({}, document.title, "/");
   }
 };
 
+document.getElementById('loginBtn').onclick = loginSpotify;
+
+// Funzione ricerca
 async function searchTracks(){
   if(!access_token){
     alert('Devi prima fare login con Spotify Premium');
@@ -60,8 +68,8 @@ async function searchTracks(){
   if(!query) return;
 
   try{
-    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
-      headers: { Authorization: 'Bearer ' + access_token }
+    const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`,{
+      headers:{Authorization:'Bearer ' + access_token}
     });
     const data = await res.json();
     const tracks = data.tracks.items;
@@ -83,8 +91,6 @@ async function searchTracks(){
     });
   }catch(err){ console.error('Errore ricerca:',err); }
 }
-
-document.getElementById('loginBtn').onclick = loginSpotify;
 </script>
 </body>
 </html>
