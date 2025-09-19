@@ -6,7 +6,7 @@ const app = express();
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirect_uri = process.env.REDIRECT_URI;
+const redirect_uri = process.env.REDIRECT_URI; // esempio: https://futureplayer2-1.onrender.com/
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -26,14 +26,19 @@ app.post('/token', async (req, res) => {
       }),
       {
         headers: {
-          'Content-Type':'application/x-www-form-urlencoded',
-          'Authorization':'Basic ' + Buffer.from(client_id+':'+client_secret).toString('base64')
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
         }
       }
     );
 
-    res.json(tokenRes.data); // ritorna access_token, refresh_token, expires_in
-  } catch(err) {
+    // Ritorna access token, refresh token e scadenza
+    res.json({
+      access_token: tokenRes.data.access_token,
+      refresh_token: tokenRes.data.refresh_token,
+      expires_in: tokenRes.data.expires_in
+    });
+  } catch (err) {
     console.error(err.response?.data || err);
     res.status(500).json({ error: 'Errore nello scambio del token' });
   }
