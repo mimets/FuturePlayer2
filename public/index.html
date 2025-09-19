@@ -22,22 +22,32 @@
     async function searchTracks() {
       const query = document.getElementById('searchInput').value;
       if(!query) return;
-      const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
-      const tracks = await res.json();
-      const container = document.getElementById('resultsContainer');
-      container.innerHTML = '';
 
-      tracks.forEach(track => {
-        if(track.preview_url){
-          const btn = document.createElement('button');
-          btn.textContent = track.name + ' - ' + track.artists.map(a=>a.name).join(', ');
-          btn.onclick = () => {
-            document.getElementById('player').src = track.preview_url;
-            document.getElementById('player').play();
-          };
-          container.appendChild(btn);
+      try {
+        const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
+        const tracks = await res.json();
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = '';
+
+        if(tracks.length === 0){
+          container.textContent = 'Nessun risultato trovato';
+          return;
         }
-      });
+
+        tracks.forEach(track => {
+          if(track.preview_url){
+            const btn = document.createElement('button');
+            btn.textContent = track.name + ' - ' + track.artists.map(a=>a.name).join(', ');
+            btn.onclick = () => {
+              document.getElementById('player').src = track.preview_url;
+              document.getElementById('player').play();
+            };
+            container.appendChild(btn);
+          }
+        });
+      } catch (err) {
+        console.error('Errore nella ricerca:', err);
+      }
     }
   </script>
 </body>

@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'FuturePlayerWeb.html'));
 });
 
-// Endpoint ricerca brani o artisti
+// Endpoint ricerca brani
 app.get('/search', async (req, res) => {
   const query = req.query.q;
   if (!query) return res.json([]);
@@ -25,7 +25,7 @@ app.get('/search', async (req, res) => {
   try {
     const response = await axios.get(`https://api.spotify.com/v1/search`, {
       headers: { Authorization: 'Bearer ' + access_token },
-      params: { q: query, type: 'track,artist', limit: 10 }
+      params: { q: query, type: 'track', limit: 10 }
     });
     res.json(response.data.tracks.items); // ritorna solo le tracce
   } catch (err) {
