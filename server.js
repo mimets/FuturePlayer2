@@ -6,52 +6,49 @@ const app = express();
 
 const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-const redirect_uri = process.env.REDIRECT_URI;
+let access_token = process.env.ACCESS_TOKEN; // token attuale
+const refresh_token = process.env.REFRESH_TOKEN;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Home page
 app.get('/', (req, res) => {
-  res.send('<h2>FuturePlayer Auth</h2><a href="/login">Accedi con Spotify</a>');
+  res.sendFile(path.join(__dirname, 'public', 'FuturePlayerWeb.html'));
 });
 
-app.get('/login', (req, res) => {
-  const scope = 'user-library-read';
-  const authURL = `https://accounts.spotify.com/authorize?response_type=code&client_id=${client_id}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirect_uri)}`;
-  res.redirect(authURL);
-});
-
-app.get('/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) return res.send('Errore: nessun codice ricevuto.');
-
+// Endpoint per prendere le playlist dell'utente
+app.get('/playlists', async (req, res) => {
   try {
-    const tokenRes = await axios.post(
-      'https://accounts.spotify.com/api/token',
-      new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
-        }
-      }
-    );
-
-    const { access_token, refresh_token, expires_in } = tokenRes.data;
-    res.send(`
-      <h2>Autenticazione completata!</h2>
-      <p>Access Token: ${access_token}</p>
-      <p>Refresh Token: ${refresh_token}</p>
-      <p>Scadenza (s): ${expires_in}</p>
-    `);
+    const response = await axios.get('https://api.spotify.com/v1/me/playlists', {
+      headers: { Authorization: 'Bearer ' + access_token }
+    });
+    res.json(response.data.items);
   } catch (err) {
+    if (err.response && err.response.status === 401) {
+      // Token scaduto, aggiorna
+      await refreshAccessToken();
+      return res.redirect('/playlists');
+    }
     console.error(err.response?.data || err);
-    res.send('Errore durante lo scambio del codice con il token.');
+    res.status(500).send('Errore fetching playlists');
   }
 });
 
+// Funzione per aggiornare l'access token
+async function refreshAccessToken() {
+  const params = new URLSearchParams();
+  params.append('grant_type', 'refresh_token');
+  params.append('refresh_token', refresh_token);
+
+  const res = await axios.post('https://accounts.spotify.com/api/token', params, {
+    headers: {
+      'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+  access_token = res.data.access_token;
+  console.log('✅ Access token aggiornato');
+}
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`✅ Server avviato sulla porta ${PORT}`));
+app.listen(PORT, () => console.log(`Server avviato su ${PORT}`));
